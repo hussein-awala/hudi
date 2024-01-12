@@ -189,7 +189,7 @@ public class CleanPlanActionExecutor<T, I, K, O> extends BaseActionExecutor<T, I
    */
   protected Option<HoodieCleanerPlan> requestClean(String startCleanTime) {
     final HoodieCleanerPlan cleanerPlan = requestClean(context);
-    // Create a clean request contains the cleaner plan if:
+    // A new clean request contains the cleaner plan if:
     // - ALLOW_EMPTY_CLEAN_COMMITS is true
     // - or the list of the file paths to be deleted is not empty
     Option<HoodieCleanerPlan> option = Option.empty();

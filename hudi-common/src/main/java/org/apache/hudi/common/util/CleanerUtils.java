@@ -29,6 +29,7 @@ import org.apache.hudi.common.model.HoodieFailedWritesCleaningPolicy;
 import org.apache.hudi.common.model.HoodieTimelineTimeZone;
 import org.apache.hudi.common.table.HoodieTableMetaClient;
 import org.apache.hudi.common.table.timeline.HoodieActiveTimeline;
+import org.apache.hudi.common.table.timeline.HoodieArchivedTimeline;
 import org.apache.hudi.common.table.timeline.HoodieInstant;
 import org.apache.hudi.common.table.timeline.HoodieTimeline;
 import org.apache.hudi.common.table.timeline.TimelineMetadataUtils;
@@ -153,6 +154,21 @@ public class CleanerUtils {
           HoodieTimeline.GREATER_THAN_OR_EQUALS, earliestTimeToRetain)).findFirst());
     }
     return earliestCommitToRetain;
+  }
+
+  public static String getLastCheckedCommit(
+      HoodieTimeline commitsTimeline, HoodieArchivedTimeline archivedTimeline, String earliestCommitToRetain
+      ) {
+    String commitJustBeforeEarliestCommitToRetain = null;
+    HoodieInstant[] instantsBeforeEarliestCommitToRetain = commitsTimeline.getInstantsAsStream()
+        .filter(commit -> HoodieTimeline.compareTimestamps(commit.getTimestamp(), HoodieTimeline.LESSER_THAN, earliestCommitToRetain)).toArray(HoodieInstant[]::new);
+    if (instantsBeforeEarliestCommitToRetain.length > 0) {
+      commitJustBeforeEarliestCommitToRetain = instantsBeforeEarliestCommitToRetain[instantsBeforeEarliestCommitToRetain.length - 1].getTimestamp();
+    } else {
+      HoodieInstant lastArchivedCompletedInstant = archivedTimeline.filterCompletedInstants().lastInstant().get();
+      commitJustBeforeEarliestCommitToRetain = lastArchivedCompletedInstant != null ? lastArchivedCompletedInstant.getTimestamp() : null;
+    }
+    return commitJustBeforeEarliestCommitToRetain != null ? commitJustBeforeEarliestCommitToRetain : earliestCommitToRetain;
   }
 
   /**

@@ -104,6 +104,7 @@ import java.util.stream.Stream;
 import scala.Tuple3;
 
 import static org.apache.hudi.HoodieTestCommitGenerator.getBaseFilename;
+import static org.apache.hudi.common.table.timeline.TimelineMetadataUtils.serializeCommitMetadata;
 import static org.apache.hudi.common.testutils.HoodieTestDataGenerator.NO_PARTITION_PATH;
 import static org.apache.hudi.common.testutils.HoodieTestTable.makeNewCommitTime;
 import static org.apache.hudi.common.testutils.HoodieTestUtils.DEFAULT_PARTITION_PATHS;
@@ -840,7 +841,7 @@ public class TestCleaner extends HoodieCleanerTestBase {
 
     String writeCommitInstant = makeNewCommitTime(currentInstant++, "%014d");
 
-    testTable.addInflightCommit(writeCommitInstant).withBaseFilesInPartition(p0, file1P0C0).getLeft().withBaseFilesInPartition(p1, file1P1C0).getKey();
+    testTable.addInflightCommit(writeCommitInstant).withBaseFilesInPartition(p0, file1P0C0).getLeft().withBaseFilesInPartition(p1, file1P1C0);
 
     HoodieCommitMetadata commitMetadata = generateCommitMetadata(writeCommitInstant,
         Collections.unmodifiableMap(new HashMap<String, List<String>>() {
@@ -853,13 +854,13 @@ public class TestCleaner extends HoodieCleanerTestBase {
     metadataWriter.updateFromWriteStatuses(commitMetadata, context.emptyHoodieData(),writeCommitInstant);
     metaClient.getActiveTimeline().saveAsComplete(
         new HoodieInstant(State.INFLIGHT, HoodieTimeline.COMMIT_ACTION, writeCommitInstant),
-        Option.of(commitMetadata.toJsonString().getBytes(StandardCharsets.UTF_8)));
+        serializeCommitMetadata(commitMetadata));
 
     metaClient = HoodieTableMetaClient.reload(metaClient);
 
     // run the cleaner
     // notice that cleaner generates inflight, request and complete commit files
-    List<HoodieCleanStat> hoodieCleanStatsOne = runCleaner(config, currentInstant++, true);
+    List<HoodieCleanStat> hoodieCleanStatsOne = runCleaner(config, currentInstant, true);
     assertEquals(0, hoodieCleanStatsOne.size(), "Must not scan any partitions and clean any files");
     assertTrue(testTable.baseFileExists(p0, writeCommitInstant, file1P0C0));
     assertTrue(testTable.baseFileExists(p1, writeCommitInstant, file1P1C0));
@@ -875,7 +876,7 @@ public class TestCleaner extends HoodieCleanerTestBase {
 
     // run cleaner
     // notice that cleaner generates inflight, request and complete commit files
-    List<HoodieCleanStat> hoodieCleanStatsTwo = runCleaner(config, currentInstant++, true);
+    List<HoodieCleanStat> hoodieCleanStatsTwo = runCleaner(config, currentInstant, true);
     assertEquals(0, hoodieCleanStatsTwo.size(), "Must not scan any partitions and clean any files");
     assertTrue(testTable.baseFileExists(p0, replaceCommitInstantOne, file2P0C1));
     assertTrue(testTable.baseFileExists(p0, writeCommitInstant, file1P0C0));
@@ -924,7 +925,7 @@ public class TestCleaner extends HoodieCleanerTestBase {
     replaceMetadata = generateReplaceCommitMetadata(replaceCommitInstantFour, p0, file3P1C2, file4P1C4);
     testTable.addReplaceCommit(replaceCommitInstantFour, Option.of(replaceMetadata.getKey()), Option.empty(), replaceMetadata.getValue());
 
-    List<HoodieCleanStat> hoodieCleanStatsFive = runCleaner(config, 7, true);
+    List<HoodieCleanStat> hoodieCleanStatsFive = runCleaner(config, currentInstant++, true);
     assertTrue(testTable.baseFileExists(p0, replaceCommitInstantTree, file4P0C3));
     assertTrue(testTable.baseFileExists(p0, replaceCommitInstantOne, file2P0C1));
     assertTrue(testTable.baseFileExists(p1, replaceCommitInstantTwo, file3P1C2));
